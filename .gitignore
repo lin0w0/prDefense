@@ -1,0 +1,22 @@
+# 设置
+.vscode/
+
+# 编译文件
+__pycache__
+
+# learn from where
+learn_from/ZeroPur
+learn_from/CSR
+
+# 数据集
+data/
+
+# 模型权重
+models/train_weights/
+
+
+# outputs/ 代码执行输出结果
+outputs/
+
+# results/ 实验结果
+results/

@@ -1,0 +1,21 @@
+# 已训练模型的登记表；相对路径以项目根目录为准。
+models:
+  resnet18:
+    arch: resnet18          # 重建网络时使用，需与权重一致
+    weights: models/train_weights/ResNet-18/best_model.pth
+    description: ResNet-18，同济掌纹 session1 训练、session2 验证
+  vgg16:
+    arch: vgg16
+    weights: models/train_weights/VGG-16/best_model.pth
+    description: VGG-16，同济掌纹 session1 训练、session2 验证
+
+evaluation:
+  dataset: tongji
+  data_root: data/resources   # 目录下需有 Tongji/ROI/session1 与 session2
+  session: 2                  # 与训练时的验证批次一致
+  batch_size: 32
+  num_workers: 0
+  output_dir: outputs/evaluate
+
+attacks:
+
