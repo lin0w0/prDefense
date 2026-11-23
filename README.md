@@ -33,6 +33,33 @@ python scripts/evaluate.py --num-workers 4    # 加快图片读取
 
 脚本打印单张 Top-1/Top-5 和同一只手掌 10 张图平均概率的融合识别率，并用 pandas 把一行一个模型的结果表写入 `results/evaluate/session<批次>-<时间>.csv`（UTF-8 BOM，Excel 可直接打开）。
 
+## 对抗样本生成
+
+`attacks/` 提供四种无目标攻击，统一在 `[0, 1]` 灰度像素空间工作，模型所需的 ImageNet 归一化由包装层完成：
+
+| 名称 | 范数 | 说明 |
+| --- | --- | --- |
+| `pgd` | L∞ | 随机起点 + 交叉熵梯度上升，投影回 epsilon 球 |
+| `bim` | L∞ | I-FGSM，从原图逐步累加梯度符号 |
+| `cw` | L2 | tanh 空间 + Adam，优化 CW 边界损失 |
+| `apgd` | L∞ | Auto-PGD（APGD-CE），自适应步长与最优解跟踪 |
+
+```powershell
+python scripts/generate_adv.py --attack pgd --model resnet18 --epsilon 4
+python scripts/generate_adv.py --attack bim --model resnet18 --limit 100
+python scripts/generate_adv.py --attack cw --model vgg16 --c 1 --steps 50
+python scripts/generate_adv.py --attack apgd --model resnet18 --steps 30
+```
+
+`--epsilon`、`--alpha` 的单位是 1/255（`--epsilon 4` 即 4/255），不传时读取 `configs/default.yaml` 的 `attacks` 段。结果保存在 `outputs/adv/<攻击>/<模型>/<强度>/session<批次>/`：对抗样本为 PNG（与原图同名），同目录的 `metadata.csv` 记录逐图原标签、干净/对抗预测、是否成功和 L∞ 扰动，`run_info.json` 与 `summary.csv` 记录本次参数和汇总指标。
+
+汇总指标有两种口径，不要混用：
+
+- `attack_success_pct`（条件 ASR）：分母是干净预测正确的图片数，分子要求干净预测正确且对抗预测错误；原本模型就分错的图片不计入分子，也不计入分母。
+- `all_misclassified_pct`：全样本口径，分母是全部图片，包含原本就分错的图片。`adv_top1_pct` 同样按全部样本统计，因此不能把 `100 - adv_top1_pct` 当作攻击成功率。
+
+已经生成过的结果不需要重新跑攻击：`python scripts/backfill_metrics.py` 会从 `metadata.csv` 重算并写回每次运行的 `summary.csv` 与 `run_info.json`；加 `--combined` 会再生成 `outputs/adv/all_runs.csv` 横向汇总表，`--dry-run` 只检查不写文件。
+
 ## 在代码中加载
 
 ```python

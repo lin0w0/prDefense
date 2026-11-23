@@ -20,3 +20,6 @@ outputs/
 
 # results/ 实验结果
 results/
+
+# 编写代码过程中的检查脚本
+utils/backfill_metrics.py
