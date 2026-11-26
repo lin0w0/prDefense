@@ -30,7 +30,12 @@ attacks:
   bim:                      # BIM / I-FGSM
     steps: 10
     alpha_scale: 1.0        # alpha = epsilon / steps
-  cw:                       # L2 优化，不使用 epsilon
+  cw:                       # 默认 CW：L∞ 版本，使用 epsilon 预算
+    steps: 50
+    alpha_scale: 2.5        # alpha = epsilon / steps * alpha_scale
+    kappa: 0.0
+    random_start: true
+  cw_l2:                    # 论文原始的 L2 版本，不使用 epsilon
     steps: 50
     c: 1.0
     kappa: 0.0

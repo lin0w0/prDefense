@@ -12,3 +12,7 @@ tqdm==4.70.1
 pillow==13.0.0
 PyYAML>=6.0,<7
 pandas>=2.0,<3
+# 各分析脚本的结果图
+matplotlib>=3.7,<4
+# 深度特征几何分析的 PCA / t-SNE
+scikit-learn>=1.4,<2

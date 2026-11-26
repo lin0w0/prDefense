@@ -7,6 +7,7 @@ __pycache__
 # learn from where
 learn_from/ZeroPur
 learn_from/CSR
+learn_from/LOTA
 
 # 数据集
 data/
@@ -20,6 +21,9 @@ outputs/
 
 # results/ 实验结果
 results/
+
+# 实验记录
+experiment_record.md
 
 # 编写代码过程中的检查脚本
 utils/backfill_metrics.py

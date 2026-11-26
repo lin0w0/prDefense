@@ -9,13 +9,14 @@
 from .apgd import APGDAttack
 from .base import NormalizedModel
 from .bim import BIMAttack
-from .cw import CWAttack
+from .cw import CWAttack, CWLinfAttack
 from .pgd import PGDAttack
 
 ATTACKS = {
     'pgd': PGDAttack,
     'bim': BIMAttack,
-    'cw': CWAttack,
+    'cw': CWLinfAttack,   # 默认 CW 使用带 epsilon 预算的 L∞ 版本
+    'cw-l2': CWAttack,    # 论文原始的 L2 版本
     'apgd': APGDAttack,
 }
 
@@ -23,6 +24,7 @@ __all__ = [
     'NormalizedModel',
     'PGDAttack',
     'BIMAttack',
+    'CWLinfAttack',
     'CWAttack',
     'APGDAttack',
     'ATTACKS',

@@ -1,10 +1,10 @@
 """生成对抗样本并保存到 outputs/adv 下。
 
-在项目根目录运行：
-    python scripts/generate_adv.py --attack pgd --model resnet18 --epsilon 4
-    python scripts/generate_adv.py --attack bim --model resnet18 --limit 100
-    python scripts/generate_adv.py --attack cw  --model vgg16 --c 1 --steps 50
-    python scripts/generate_adv.py --attack apgd --model resnet18 --epsilon 4 --steps 30
+在项目根目录运行（--attack 省略时默认 cw，即 L∞ 版本）：
+    python scripts/generate_adv.py --attack cw   --model resnet18 --epsilon 4
+    python scripts/generate_adv.py --attack cw-l2 --model vgg16 --c 1 --steps 50
+    python scripts/generate_adv.py --attack pgd  --model resnet18 --epsilon 4
+    python scripts/generate_adv.py --attack apgd --model resnet18 --steps 30
 
 约定：
     * --epsilon 与 --alpha 的单位都是 1/255，--epsilon 4 表示 4/255；
@@ -43,8 +43,9 @@ from models.manager import (  # noqa: E402
 def parse_args():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--attack', default='cw', choices=['bim','pgd','apgd','cw'],
-                        help='攻击方法，默认 bim')
+    parser.add_argument('--attack', default='cw',
+                        choices=['pgd', 'bim', 'cw', 'cw-l2', 'apgd'],
+                        help='攻击方法，默认 cw（L∞ 版本）；cw-l2 为 L2 版本')
     parser.add_argument('--model', action='append',
                         help='模型名称，可重复；默认配置中的全部模型')
     parser.add_argument('--config', type=Path, default=DEFAULT_CONFIG, help='模型与攻击配置文件')
@@ -61,11 +62,11 @@ def parse_args():
                         help='每步步长，单位 1/255；默认按 epsilon/steps*alpha_scale 自动计算')
     parser.add_argument('--alpha-scale', type=float, help='自动步长倍率')
     parser.add_argument('--kappa', type=float, help='CW 置信度边界')
-    parser.add_argument('--c', type=float, help='CW 边界损失权重')
-    parser.add_argument('--lr', type=float, help='CW 的 Adam 学习率')
+    parser.add_argument('--c', type=float, help='CW-L2 边界损失权重')
+    parser.add_argument('--lr', type=float, help='CW-L2 的 Adam 学习率')
     parser.add_argument('--rho', type=float, help='APGD 振荡判据')
     parser.add_argument('--random-start', action=argparse.BooleanOptionalAction,
-                        default=None, help='PGD 是否随机初始化（默认读取配置）')
+                        default=None, help='PGD / CW-L∞ 是否随机初始化（默认读取配置）')
     parser.add_argument('--seed', type=int, help='随机种子，默认读取配置')
     parser.add_argument('--output', type=Path, help='对抗样本输出根目录')
     return parser.parse_args()
@@ -108,8 +109,9 @@ def make_pixel_dataset(session, root, limit=None):
 
 def build_params(args, attack_config):
     """把命令行覆盖项与配置默认值合并成攻击构造参数。"""
-    if args.attack == 'cw':
-        config = attack_config.get('cw', {})
+    # L2 版本不使用 epsilon，单独处理。
+    if args.attack == 'cw-l2':
+        config = attack_config.get('cw_l2', {})
         return {
             'c': float(pick(args.c, config, 'c', 1.0)),
             'kappa': float(pick(args.kappa, config, 'kappa', 0.0)),
@@ -119,6 +121,17 @@ def build_params(args, attack_config):
 
     epsilon = float(pick(args.epsilon, attack_config, 'epsilon', 4)) / 255.0
     alpha = args.alpha / 255.0 if args.alpha is not None else None
+
+    if args.attack == 'cw':
+        config = attack_config.get('cw', {})
+        return {
+            'epsilon': epsilon,
+            'steps': int(pick(args.steps, config, 'steps', 50)),
+            'alpha': alpha,
+            'alpha_scale': float(pick(args.alpha_scale, config, 'alpha_scale', 2.5)),
+            'kappa': float(pick(args.kappa, config, 'kappa', 0.0)),
+            'random_start': bool(pick(args.random_start, config, 'random_start', True)),
+        }
 
     if args.attack == 'pgd':
         config = attack_config.get('pgd', {})
@@ -149,8 +162,10 @@ def build_params(args, attack_config):
 
 def strength_name(attack, params):
     """用攻击强度参数命名子目录，便于不同设置的结果并存。"""
-    if attack == 'cw':
+    if attack == 'cw-l2':
         return f"c{params['c']:g}_kappa{params['kappa']:g}"
+    # L∞ 攻击统一用 epsN 命名，便于分析脚本按目录名解析 epsilon；
+    # kappa 等其余参数记录在 run_info.json 中。
     return f"eps{params['epsilon'] * 255:g}"
 
 
